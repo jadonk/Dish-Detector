@@ -92,8 +92,8 @@ msg.attach(MIMEImage(img.read()))
 def sendmsg(message):
     server = smtplib.SMTP("smtp.gmail.com", 587)
     server.starttls()
-    server.login('jkridner@gmail.com', 'ftyaxfcbnbljpkjf')
-    server.sendmail('jkridner@gmail.com', '5867641992@mms.att.net', message.as_string())
+    server.login('user@gmail.com', 'password')
+    server.sendmail('user@gmail.com', '2125555555@mms.att.net', message.as_string())
 if dirty and not wasDirty:
     msg.attach(MIMEText("Dishes are dirty"))
     sendmsg(msg)
