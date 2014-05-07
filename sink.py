@@ -1,4 +1,4 @@
-from annoyances import alarms
+# Adapted from https://github.com/fridgehead/Dish-Detector
 import time
 import sys
 import cv
@@ -12,7 +12,7 @@ def getBrightness(img):
   test = cv.CloneImage(img)
   cv.CvtColor(img,test, cv.CV_BGR2HSV)
   cv.Split(img, hue, sat,val,None)
-  	
+    
   return cv.Avg(val)[0]
 
 '''
@@ -28,7 +28,7 @@ def main(debug=False, fromCam=False):
   sinkx = [0,0]
   sinky = [0,0]
   #load the sink defs from settings
-  f = open("settings", "r")
+  f = open("/var/lib/cloud9/Dish-Detector/settings", "r")
   for line in f:
     tok = line.split("=")
     if tok[0] == "radius":
@@ -43,6 +43,8 @@ def main(debug=False, fromCam=False):
   im = None
   if fromCam == True:
     capture = cv.CaptureFromCAM(-1) #-1 will select the first camera available, usually /dev/video0 on linux
+    cv.SetCaptureProperty(capture, cv.CV_CAP_PROP_FRAME_WIDTH, 320)
+    cv.SetCaptureProperty(capture, cv.CV_CAP_PROP_FRAME_HEIGHT, 240)
     im = cv.QueryFrame(capture)
   else:
     im = cv.LoadImage(sys.argv[1])
@@ -51,10 +53,10 @@ def main(debug=False, fromCam=False):
   print "image brightness = " , bright
   #lets see if its too dark and we should shut the alarms up
   if bright < 30:
-	  alarm = alarms()
-	  alarm.stopAllAlarms()
-	  print "Stopping all alarms as its night time, alarms count will continue in the morning"
-	  exit()
+    #alarm = alarms()
+    #alarm.stopAllAlarms()
+    print "Stopping all alarms as its night time, alarms count will continue in the morning"
+    exit()
 
   #create grayscale and edge storage
   gray = cv.CreateImage(cv.GetSize(im), cv.IPL_DEPTH_8U, 1)
@@ -64,15 +66,15 @@ def main(debug=False, fromCam=False):
 
   #edge detect it, then smooth the edges
   cv.Canny(gray, edges, thresh, thresh / 2, 3)
-  cv.Smooth(gray, gray, cv.CV_GAUSSIAN, 3, 3) 
+  cv.Smooth(edges, gray, cv.CV_GAUSSIAN, 3, 3) 
  
   #create storage for hough cirlces
   storage = cv.CreateMat(640, 1, cv.CV_32FC3)
   #find the circles, most of these parameters are magic numbers that work well enough for where the camera is installed
   cv.HoughCircles(gray, storage, cv.CV_HOUGH_GRADIENT, 2, gray.width / 18, thresh, 300,0,0)
  
-  #how much crap have we detected?
-  detectedShit = 0
+  #how many circles have we detected?
+  detectedCircles = 0
   #for each circle detected...
   for i in range(storage.rows ):
     val = storage[i, 0] #because numpy arrays are retarded 
@@ -85,28 +87,26 @@ def main(debug=False, fromCam=False):
     #try and classify this as sink
     if sinkx[0] - sinkx[1] < center[0] < sinkx[0] + sinkx[1]:
       if sinky[0] - sinky[1] < center[1] < sinky[0] + sinky[1]:
-	#plugradius is now min/max
+        #plugradius is now min/max
         if plugradius[0]  < radius < plugradius[1]:
-	  print "..probably the PLUGHOLE"
+          print "..probably the PLUGHOLE"
           cv.Circle(im, center, radius, (255, 0, 255), 3, 8, 0)
-	  sinkFound = True
-	else:
-	  print "..PH failed radius check"
+          sinkFound = True
+        else:
+          print "..PH failed radius check"
       else:
-          print "..PH failed Y check"
-    
+        print "..PH failed Y check"
     else:
       print "..PH failed X check"
     if not sinkFound:
-      print "..probably some unwashed crap"
-      detectedShit = detectedShit + 1
+      print "..probably some unwashed dish"
+      detectedCircles = detectedCircles + 1
       cv.Circle(im, center, radius, (0, 0, 255), 3, 8, 0)
 
-
-  print "detected crap: ", detectedShit
+  print "detected circle: ", detectedCircles
   #create our alarm object to trigger annoyances
-  alarm = alarms()
-  if detectedShit > 0:
+  #alarm = alarms()
+  if detectedCircles > 0:
     #read the last status from the file. Update it to now
     #also consult the Table-o-Annoyance(tm) to see if we set off an alarm/explosion
     #lots of this could be tidied up but I DONT CARE
@@ -114,40 +114,34 @@ def main(debug=False, fromCam=False):
     stat = f.readline().strip()
     f.close()
     if stat == "clean":
-       print "last status was : " + stat + ", changing it to DIRTY"
-       f = open("status", "w")
-       f.write("DIRTY")
-       f.close()
-       alarm.doAlarm(0) 
+      print "last status was : " + stat + ", changing it to DIRTY"
+      f = open("status", "w")
+      f.write("DIRTY")
+      f.close()
+      #alarm.doAlarm(0) 
     else:
-       #just update the crapcounter
-       print "updating crap counter"
-       f = open("crapcount", "r")
-       ct = int(f.readline().strip())
-       f.close()
-       ct = ct + 1
-       if 1 < ct < 2:
-	       alarm.doAlarm(0)
-       elif 2 < ct < 5:
-	       alarm.doAlarm(1)
-       elif ct >= 5:
-               alarm.doAlarm(2)
-       f = open("crapcount", "w")
-       f.write(str(ct))
-       f.close()
+      #just update the dishcounter
+      print "updating dish counter"
+      f = open("dishcount", "r")
+      ct = int(f.readline().strip())
+      f.close()
+      ct = ct + 1
+      f = open("dishcount", "w")
+      f.write(str(ct))
+      f.close()
 
 
   else:
-      print "Last status was dirty and now we're CLEAN"
-      f = open("status", "w")
-      f.write("clean")
-      f.close()
-      print "resetting crapcount"
-      f = open("crapcount", "w")
-      f.write("0")
-      f.close()
-      # kill ALL the alarms \o/
-      alarm.stopAllAlarms()
+    print "Last status was dirty and now we're CLEAN"
+    f = open("status", "w")
+    f.write("clean")
+    f.close()
+    print "resetting dishcount"
+    f = open("dishcount", "w")
+    f.write("0")
+    f.close()
+    # kill ALL the alarms \o/
+    #alarm.stopAllAlarms()
   #if debugging then display each stage of the process in a cv windows. Useful when configuring things
   if debug: 
     cv.NamedWindow('Circles')
@@ -155,6 +149,8 @@ def main(debug=False, fromCam=False):
     cv.WaitKey(0)
     cv.ShowImage('Circles', edges)
     cv.WaitKey(0)
+  else:
+    cv.SaveImage("/var/lib/cloud9/Dish-Detector/dishes.jpg", im)
 
 if __name__ == '__main__':
   #print change these options when fiddling
