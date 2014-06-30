@@ -79,7 +79,7 @@ if dirty:
     f.write("dirty")
 else:
     f.write("clean")
-f.close();
+f.close()
 
 #send text message
 import smtplib
@@ -90,6 +90,9 @@ img = open("/var/lib/cloud9/Dish-Detector/sink-latest-circles.jpg", "rb")
 msg = MIMEMultipart()
 msg.attach(MIMEImage(img.read()))
 def sendmsg(message):
+    f = open("/var/lib/cloud9/Dish-Detector/last-msg.txt", "w")
+    f.write(str(message))
+    f.close()
     server = smtplib.SMTP("smtp.gmail.com", 587)
     server.starttls()
     server.login('user@gmail.com', 'password')
