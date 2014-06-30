@@ -95,6 +95,7 @@ def sendmsg(message):
     f.write(str(message))
     f.close()
     server = smtplib.SMTP("smtp.gmail.com", 587)
+    server.set_debuglevel(1)
     server.starttls()
     server.login('user@gmail.com', 'password')
     server.sendmail('user@gmail.com', '2125555555@mms.att.net', message.as_string())
