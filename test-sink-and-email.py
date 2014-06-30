@@ -90,6 +90,7 @@ img = open("/var/lib/cloud9/Dish-Detector/sink-latest-circles.jpg", "rb")
 msg = MIMEMultipart()
 msg.attach(MIMEImage(img.read()))
 def sendmsg(message):
+    print "Sending email notifcation"
     f = open("/var/lib/cloud9/Dish-Detector/last-msg.txt", "w")
     f.write(str(message))
     f.close()
